@@ -23,6 +23,7 @@ db.exec(`
     full_text TEXT,
     type TEXT,
     follow_ups TEXT,
+    details TEXT,
     FOREIGN KEY(profile_id) REFERENCES profiles(id)
   );
 
@@ -79,9 +80,9 @@ async function startServer() {
   });
 
   app.post("/api/records", (req, res) => {
-    const { profile_id, date, summary, full_text, type, follow_ups } = req.body;
-    const result = db.prepare("INSERT INTO medical_records (profile_id, date, summary, full_text, type, follow_ups) VALUES (?, ?, ?, ?, ?, ?)")
-      .run(profile_id, date, summary, full_text, type, JSON.stringify(follow_ups));
+    const { profile_id, date, summary, full_text, type, follow_ups, details } = req.body;
+    const result = db.prepare("INSERT INTO medical_records (profile_id, date, summary, full_text, type, follow_ups, details) VALUES (?, ?, ?, ?, ?, ?, ?)")
+      .run(profile_id, date, summary, full_text, type, JSON.stringify(follow_ups), JSON.stringify(details));
     res.json({ id: result.lastInsertRowid });
   });
 

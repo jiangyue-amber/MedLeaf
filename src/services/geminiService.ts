@@ -19,7 +19,14 @@ export const analyzeMedicalDocument = async (base64Data: string, mimeType: strin
             text: `Analyze this medical document (Doctor's note, lab result, or discharge summary). 
             Extract the following information in JSON format:
             1. summary: A concise summary of the document in plain English.
-            2. full_text_translated: A translation of complex medical jargon into simple terms.
+            2. structured_data: An object containing:
+               - time: Time of visit or document.
+               - hospital: Name of the hospital or clinic.
+               - reason_for_visit: Primary reason for the visit.
+               - symptoms: A list of symptoms mentioned.
+               - lab_results: A list of lab results, each with { test, result, unit, reference_range, interpretation }.
+               - diagnosis: Any diagnosis mentioned.
+               - plan: The recommended treatment plan or next steps.
             3. date: The date of the document (YYYY-MM-DD).
             4. type: The type of document (e.g., "Lab Result", "Doctor Note").
             5. follow_ups: A list of 3-4 smart questions to ask the doctor next time.`,
@@ -33,7 +40,34 @@ export const analyzeMedicalDocument = async (base64Data: string, mimeType: strin
         type: Type.OBJECT,
         properties: {
           summary: { type: Type.STRING },
-          full_text_translated: { type: Type.STRING },
+          structured_data: {
+            type: Type.OBJECT,
+            properties: {
+              time: { type: Type.STRING },
+              hospital: { type: Type.STRING },
+              reason_for_visit: { type: Type.STRING },
+              symptoms: { 
+                type: Type.ARRAY,
+                items: { type: Type.STRING }
+              },
+              lab_results: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    test: { type: Type.STRING },
+                    result: { type: Type.STRING },
+                    unit: { type: Type.STRING },
+                    reference_range: { type: Type.STRING },
+                    interpretation: { type: Type.STRING }
+                  },
+                  required: ["test", "result"]
+                }
+              },
+              diagnosis: { type: Type.STRING },
+              plan: { type: Type.STRING }
+            }
+          },
           date: { type: Type.STRING },
           type: { type: Type.STRING },
           follow_ups: { 
@@ -41,13 +75,19 @@ export const analyzeMedicalDocument = async (base64Data: string, mimeType: strin
             items: { type: Type.STRING }
           }
         },
-        required: ["summary", "full_text_translated", "date", "type", "follow_ups"]
+        required: ["summary", "structured_data", "date", "type", "follow_ups"]
       }
     }
   });
 
-  return JSON.parse(response.text || "{}");
+  const data = JSON.parse(response.text || "{}");
+  // We'll store structured_data in full_text for the UI to consume
+  return {
+    ...data,
+    full_text_translated: JSON.stringify(data.structured_data)
+  };
 };
+
 
 export const analyzeInsuranceDocument = async (base64Data: string, mimeType: string) => {
   const ai = getAI();

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Heart, 
+  Leaf,
   Shield, 
   Users, 
   Plus, 
@@ -20,7 +21,7 @@ import {
   HelpCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Profile, MedicalRecord, DailyLog, InsurancePolicy, BenefitsSummary } from './types';
+import { Profile, MedicalRecord, DailyLog, InsurancePolicy, BenefitsSummary, StructuredMedicalData } from './types';
 import { analyzeMedicalDocument, analyzeInsuranceDocument, getMacroRecommendations } from './services/geminiService';
 
 // --- Components ---
@@ -237,10 +238,10 @@ export default function App() {
       <header className="bg-white border-b border-slate-100 sticky top-0 z-30">
         <div className="max-w-2xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-              <Heart className="w-5 h-5 text-white" />
+            <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center">
+              <Leaf className="w-5 h-5 text-white" />
             </div>
-            <h1 className="font-bold text-lg tracking-tight">PatientProfile</h1>
+            <h1 className="font-bold text-lg tracking-tight">MedLeaf</h1>
           </div>
           
           <div className="relative">
@@ -361,16 +362,102 @@ export default function App() {
                         </div>
                         <span className="text-xs text-slate-400 font-medium">{record.date}</span>
                       </div>
-                      <p className="text-sm text-slate-600 line-clamp-2 mb-4 italic">
-                        "{record.full_text}"
-                      </p>
-                      <div className="flex flex-wrap gap-2">
-                        {JSON.parse(record.follow_ups || '[]').map((q: string, i: number) => (
-                          <div key={i} className="text-[11px] bg-slate-100 text-slate-600 px-2 py-1 rounded-md flex items-center gap-1">
-                            <MessageSquare className="w-3 h-3" />
-                            {q}
-                          </div>
-                        ))}
+                      
+                      {(() => {
+                        try {
+                          const data = JSON.parse(record.full_text) as StructuredMedicalData;
+                          return (
+                            <div className="space-y-4 mt-2 mb-4">
+                              <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+                                {data.time && (
+                                  <div>
+                                    <span className="text-slate-400 font-bold uppercase block text-[9px]">Time</span>
+                                    <span className="text-slate-700">{data.time}</span>
+                                  </div>
+                                )}
+                                {data.hospital && (
+                                  <div>
+                                    <span className="text-slate-400 font-bold uppercase block text-[9px]">Hospital</span>
+                                    <span className="text-slate-700">{data.hospital}</span>
+                                  </div>
+                                )}
+                                {data.reason_for_visit && (
+                                  <div className="col-span-2">
+                                    <span className="text-slate-400 font-bold uppercase block text-[9px]">Reason for Visit</span>
+                                    <span className="text-slate-700">{data.reason_for_visit}</span>
+                                  </div>
+                                )}
+                              </div>
+
+                              {data.symptoms && data.symptoms.length > 0 && (
+                                <div>
+                                  <span className="text-slate-400 font-bold uppercase block text-[9px] mb-1">Symptoms</span>
+                                  <ul className="list-disc list-inside text-xs text-slate-700 space-y-0.5">
+                                    {data.symptoms.map((s, i) => <li key={i}>{s}</li>)}
+                                  </ul>
+                                </div>
+                              )}
+
+                              {data.lab_results && data.lab_results.length > 0 && (
+                                <div>
+                                  <span className="text-slate-400 font-bold uppercase block text-[9px] mb-1">Lab Results</span>
+                                  <div className="overflow-x-auto border border-slate-100 rounded-lg">
+                                    <table className="w-full text-[10px] text-left">
+                                      <thead className="bg-slate-50 text-slate-500 uppercase font-bold">
+                                        <tr>
+                                          <th className="px-2 py-1.5">Test</th>
+                                          <th className="px-2 py-1.5">Result</th>
+                                          <th className="px-2 py-1.5">Reference</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody className="divide-y divide-slate-50">
+                                        {data.lab_results.map((r, i) => (
+                                          <tr key={i}>
+                                            <td className="px-2 py-1.5 font-medium">{r.test}</td>
+                                            <td className="px-2 py-1.5">{r.result} {r.unit}</td>
+                                            <td className="px-2 py-1.5 text-slate-400">{r.reference_range}</td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {data.diagnosis && (
+                                 <div>
+                                   <span className="text-slate-400 font-bold uppercase block text-[9px]">Diagnosis</span>
+                                   <span className="text-slate-700 text-xs">{data.diagnosis}</span>
+                                 </div>
+                              )}
+                              
+                              {data.plan && (
+                                 <div>
+                                   <span className="text-slate-400 font-bold uppercase block text-[9px]">Plan</span>
+                                   <span className="text-slate-700 text-xs">{data.plan}</span>
+                                 </div>
+                              )}
+                            </div>
+                          );
+                        } catch (e) {
+                          return (
+                            <p className="text-sm text-slate-600 line-clamp-2 mb-4 italic">
+                              "{record.full_text}"
+                            </p>
+                          );
+                        }
+                      })()}
+
+                      <div className="space-y-2">
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Follow-up questions for doctor</p>
+                        <div className="space-y-2">
+                          {JSON.parse(record.follow_ups || '[]').map((q: string, i: number) => (
+                            <div key={i} className="text-[11px] bg-slate-50 text-slate-600 p-2 rounded-lg flex items-start gap-2 border border-slate-100">
+                              <MessageSquare className="w-3.5 h-3.5 mt-0.5 shrink-0 text-slate-400" />
+                              <span>{q}</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     </Card>
                   ))}
