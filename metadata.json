@@ -1,0 +1,7 @@
+{
+  "name": "Patient Profile App",
+  "description": "A privacy-first family health manager. Track medical records, insurance benefits, and daily symptoms with AI-powered insights.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
