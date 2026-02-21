@@ -65,3 +65,8 @@ export interface BenefitsSummary {
   }[];
   expiration: string;
 }
+
+export interface ChatMessage {
+  role: 'user' | 'model';
+  text: string;
+}

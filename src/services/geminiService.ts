@@ -172,3 +172,21 @@ export const getMacroRecommendations = async (history: any[]) => {
 
   return response.text;
 };
+
+export const chatWithAI = async (history: any[], chatHistory: { role: 'user' | 'model', parts: { text: string }[] }[]) => {
+  const ai = getAI();
+  const chat = ai.chats.create({
+    model: "gemini-3-flash-preview",
+    config: {
+      systemInstruction: `You are MedLeaf Advice, an AI health strategy assistant. 
+      You have access to the user's medical history: ${JSON.stringify(history)}.
+      Your goal is to provide personalized health strategies, explain medical jargon, and help users understand their insurance benefits.
+      Be professional, empathetic, and clear. Always remind users to consult with a medical professional for actual medical advice.`,
+    },
+    history: chatHistory.slice(0, -1),
+  });
+
+  const lastMessage = chatHistory[chatHistory.length - 1].parts[0].text;
+  const response = await chat.sendMessage({ message: lastMessage });
+  return response.text;
+};

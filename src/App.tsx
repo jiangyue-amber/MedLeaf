@@ -8,7 +8,6 @@ import {
   Minus,
   ChevronRight, 
   FileText, 
-  Activity, 
   Calendar, 
   MessageSquare, 
   Upload,
@@ -18,11 +17,13 @@ import {
   Loader2,
   X,
   Stethoscope,
-  HelpCircle
+  HelpCircle,
+  Sparkles,
+  Send
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Profile, MedicalRecord, DailyLog, InsurancePolicy, BenefitsSummary, StructuredMedicalData } from './types';
-import { analyzeMedicalDocument, analyzeInsuranceDocument, getMacroRecommendations } from './services/geminiService';
+import { Profile, MedicalRecord, InsurancePolicy, BenefitsSummary, StructuredMedicalData, ChatMessage } from './types';
+import { analyzeMedicalDocument, analyzeInsuranceDocument, getMacroRecommendations, chatWithAI } from './services/geminiService';
 
 // --- Components ---
 
@@ -75,15 +76,25 @@ export default function App() {
   const [activeProfile, setActiveProfile] = useState<Profile | null>(null);
   const [records, setRecords] = useState<MedicalRecord[]>([]);
   const [insurance, setInsurance] = useState<InsurancePolicy[]>([]);
-  const [logs, setLogs] = useState<DailyLog[]>([]);
-  const [activeTab, setActiveTab] = useState<'health' | 'insurance' | 'profiles'>('health');
+  const [activeTab, setActiveTab] = useState<'health' | 'insurance' | 'profiles' | 'advice'>('health');
   const [isUploading, setIsUploading] = useState(false);
   const [uploadType, setUploadType] = useState<'medical' | 'insurance' | null>(null);
   const [showPrivacyDisclaimer, setShowPrivacyDisclaimer] = useState(true);
   const [recommendations, setRecommendations] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [expandedRecords, setExpandedRecords] = useState<Set<number>>(new Set());
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatInput, setChatInput] = useState('');
+  const [isChatLoading, setIsChatLoading] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [chatMessages]);
 
   useEffect(() => {
     fetchProfiles();
@@ -97,6 +108,15 @@ export default function App() {
     }
   }, [activeProfile]);
 
+  const toggleRecord = (id: number) => {
+    setExpandedRecords(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   const fetchProfiles = async () => {
     const res = await fetch('/api/profiles');
     const data = await res.json();
@@ -107,14 +127,12 @@ export default function App() {
   };
 
   const fetchData = async (profileId: number) => {
-    const [recRes, insRes, logRes] = await Promise.all([
+    const [recRes, insRes] = await Promise.all([
       fetch(`/api/records/${profileId}`),
-      fetch(`/api/insurance/${profileId}`),
-      fetch(`/api/logs/${profileId}`)
+      fetch(`/api/insurance/${profileId}`)
     ]);
     setRecords(await recRes.json());
     setInsurance(await insRes.json());
-    setLogs(await logRes.json());
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -168,28 +186,45 @@ export default function App() {
     reader.readAsDataURL(file);
   };
 
-  const addDailyLog = async (text: string) => {
-    if (!activeProfile) return;
-    await fetch('/api/logs', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        profile_id: activeProfile.id,
-        date: new Date().toISOString().split('T')[0],
-        symptom_description: text
-      })
-    });
-    fetchData(activeProfile.id);
-  };
-
   const getRecommendations = async () => {
     if (!activeProfile || records.length === 0) return;
     setIsAnalyzing(true);
     try {
       const recs = await getMacroRecommendations(records);
       setRecommendations(recs || "No specific recommendations at this time.");
+      if (chatMessages.length === 0) {
+        setChatMessages([
+          { role: 'model', text: "Hello! I'm your MedLeaf Advice assistant. Based on your history, here are some initial thoughts:" },
+          { role: 'model', text: recs || "I'm analyzing your records to provide the best health strategy." }
+        ]);
+      }
     } finally {
       setIsAnalyzing(false);
+    }
+  };
+
+  const handleSendMessage = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!chatInput.trim() || isChatLoading || !activeProfile) return;
+
+    const userMessage = chatInput.trim();
+    setChatInput('');
+    const newMessages: ChatMessage[] = [...chatMessages, { role: 'user', text: userMessage }];
+    setChatMessages(newMessages);
+    setIsChatLoading(true);
+
+    try {
+      const geminiHistory = newMessages.map(m => ({
+        role: m.role,
+        parts: [{ text: m.text }]
+      }));
+      const response = await chatWithAI(records, geminiHistory);
+      setChatMessages([...newMessages, { role: 'model', text: response || "I'm sorry, I couldn't process that request." }]);
+    } catch (err) {
+      console.error("Chat failed", err);
+      setChatMessages([...newMessages, { role: 'model', text: "Sorry, I'm having trouble connecting right now. Please try again later." }]);
+    } finally {
+      setIsChatLoading(false);
     }
   };
 
@@ -289,7 +324,7 @@ export default function App() {
         {activeTab === 'health' && (
           <div className="space-y-6">
             {/* Quick Actions */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1">
               <Button 
                 variant="secondary" 
                 className="h-24 flex-col"
@@ -298,41 +333,7 @@ export default function App() {
                 <Upload className="w-6 h-6" />
                 <span>Upload Note</span>
               </Button>
-              <Button 
-                variant="outline" 
-                className="h-24 flex-col bg-white"
-                onClick={() => {
-                  const symptom = prompt("How are you feeling today?");
-                  if (symptom) addDailyLog(symptom);
-                }}
-              >
-                <Activity className="w-6 h-6 text-teal-600" />
-                <span>Log Symptom</span>
-              </Button>
             </div>
-
-            {/* Recommendations Section */}
-            <Card className="bg-gradient-to-br from-teal-500 to-emerald-600 text-white border-none">
-              <div className="flex justify-between items-start mb-4">
-                <div className="flex items-center gap-2">
-                  <Stethoscope className="w-5 h-5" />
-                  <h3 className="font-bold">AI Health Strategy</h3>
-                </div>
-                <Button 
-                  variant="ghost" 
-                  className="text-white hover:bg-white/10 p-1 h-auto"
-                  onClick={getRecommendations}
-                  loading={isAnalyzing}
-                >
-                  <Search className="w-4 h-4" />
-                </Button>
-              </div>
-              {recommendations ? (
-                <p className="text-sm leading-relaxed opacity-90">{recommendations}</p>
-              ) : (
-                <p className="text-sm opacity-80">Tap the search icon to generate personalized health strategies based on your history.</p>
-              )}
-            </Card>
 
             {/* Timeline */}
             <div className="space-y-4">
@@ -347,141 +348,145 @@ export default function App() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {records.map((record) => (
-                    <Card key={record.id} className="hover:border-blue-200 transition-colors cursor-pointer group relative">
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); deleteRecord(record.id); }}
-                        className="absolute top-4 right-4 p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-all opacity-0 group-hover:opacity-100"
+                  {records.map((record) => {
+                    const isExpanded = expandedRecords.has(record.id);
+                    let structuredData: StructuredMedicalData | null = null;
+                    try {
+                      structuredData = JSON.parse(record.full_text);
+                    } catch (e) {}
+
+                    return (
+                      <Card 
+                        key={record.id} 
+                        className="hover:border-blue-200 transition-colors cursor-pointer group relative overflow-hidden"
+                        onClick={() => toggleRecord(record.id)}
                       >
-                        <X className="w-4 h-4" />
-                      </button>
-                      <div className="flex justify-between items-start mb-3 pr-8">
-                        <div>
-                          <span className="text-xs font-bold text-blue-600 uppercase tracking-wider">{record.type}</span>
-                          <h4 className="font-bold text-slate-800">{record.summary}</h4>
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); deleteRecord(record.id); }}
+                          className="absolute top-4 right-4 p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-all opacity-0 group-hover:opacity-100 z-10"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+
+                        <div className="flex justify-between items-start pr-8">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">{record.type}</span>
+                              <span className="text-[10px] text-slate-400 font-medium">{record.date}</span>
+                            </div>
+                            <h4 className="font-bold text-slate-800">
+                              {structuredData?.reason_for_visit || record.summary}
+                            </h4>
+                          </div>
+                          <motion.div
+                            animate={{ rotate: isExpanded ? 180 : 0 }}
+                            className="text-slate-300"
+                          >
+                            <ChevronRight className="w-5 h-5 rotate-90" />
+                          </motion.div>
                         </div>
-                        <span className="text-xs text-slate-400 font-medium">{record.date}</span>
-                      </div>
-                      
-                      {(() => {
-                        try {
-                          const data = JSON.parse(record.full_text) as StructuredMedicalData;
-                          return (
-                            <div className="space-y-4 mt-2 mb-4">
-                              <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
-                                {data.time && (
-                                  <div>
-                                    <span className="text-slate-400 font-bold uppercase block text-[9px]">Time</span>
-                                    <span className="text-slate-700">{data.time}</span>
+                        
+                        <AnimatePresence>
+                          {isExpanded && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: 'auto', opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              className="overflow-hidden"
+                            >
+                              <div className="pt-6 space-y-6">
+                                {structuredData ? (
+                                  <div className="space-y-4">
+                                    <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+                                      {structuredData.time && (
+                                        <div>
+                                          <span className="text-slate-400 font-bold uppercase block text-[9px]">Time</span>
+                                          <span className="text-slate-700">{structuredData.time}</span>
+                                        </div>
+                                      )}
+                                      {structuredData.hospital && (
+                                        <div>
+                                          <span className="text-slate-400 font-bold uppercase block text-[9px]">Hospital</span>
+                                          <span className="text-slate-700">{structuredData.hospital}</span>
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    {structuredData.symptoms && structuredData.symptoms.length > 0 && (
+                                      <div>
+                                        <span className="text-slate-400 font-bold uppercase block text-[9px] mb-1">Symptoms</span>
+                                        <ul className="list-disc list-inside text-xs text-slate-700 space-y-0.5">
+                                          {structuredData.symptoms.map((s, i) => <li key={i}>{s}</li>)}
+                                        </ul>
+                                      </div>
+                                    )}
+
+                                    {structuredData.lab_results && structuredData.lab_results.length > 0 && (
+                                      <div>
+                                        <span className="text-slate-400 font-bold uppercase block text-[9px] mb-1">Lab Results</span>
+                                        <div className="overflow-x-auto border border-slate-100 rounded-lg">
+                                          <table className="w-full text-[10px] text-left">
+                                            <thead className="bg-slate-50 text-slate-500 uppercase font-bold">
+                                              <tr>
+                                                <th className="px-2 py-1.5">Test</th>
+                                                <th className="px-2 py-1.5">Result</th>
+                                                <th className="px-2 py-1.5">Reference</th>
+                                              </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-50">
+                                              {structuredData.lab_results.map((r, i) => (
+                                                <tr key={i}>
+                                                  <td className="px-2 py-1.5 font-medium">{r.test}</td>
+                                                  <td className="px-2 py-1.5">{r.result} {r.unit}</td>
+                                                  <td className="px-2 py-1.5 text-slate-400">{r.reference_range}</td>
+                                                </tr>
+                                              ))}
+                                            </tbody>
+                                          </table>
+                                        </div>
+                                      </div>
+                                    )}
+                                    
+                                    {structuredData.diagnosis && (
+                                      <div>
+                                        <span className="text-slate-400 font-bold uppercase block text-[9px]">Diagnosis</span>
+                                        <span className="text-slate-700 text-xs">{structuredData.diagnosis}</span>
+                                      </div>
+                                    )}
+                                    
+                                    {structuredData.plan && (
+                                      <div>
+                                        <span className="text-slate-400 font-bold uppercase block text-[9px]">Plan</span>
+                                        <span className="text-slate-700 text-xs">{structuredData.plan}</span>
+                                      </div>
+                                    )}
                                   </div>
+                                ) : (
+                                  <p className="text-sm text-slate-600 italic">
+                                    "{record.full_text}"
+                                  </p>
                                 )}
-                                {data.hospital && (
-                                  <div>
-                                    <span className="text-slate-400 font-bold uppercase block text-[9px]">Hospital</span>
-                                    <span className="text-slate-700">{data.hospital}</span>
+
+                                <div className="space-y-2 pt-4 border-t border-slate-50">
+                                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Follow-up questions for doctor</p>
+                                  <div className="space-y-2">
+                                    {JSON.parse(record.follow_ups || '[]').map((q: string, i: number) => (
+                                      <div key={i} className="text-[11px] bg-slate-50 text-slate-600 p-2 rounded-lg flex items-start gap-2 border border-slate-100">
+                                        <MessageSquare className="w-3.5 h-3.5 mt-0.5 shrink-0 text-slate-400" />
+                                        <span>{q}</span>
+                                      </div>
+                                    ))}
                                   </div>
-                                )}
-                                {data.reason_for_visit && (
-                                  <div className="col-span-2">
-                                    <span className="text-slate-400 font-bold uppercase block text-[9px]">Reason for Visit</span>
-                                    <span className="text-slate-700">{data.reason_for_visit}</span>
-                                  </div>
-                                )}
+                                </div>
                               </div>
-
-                              {data.symptoms && data.symptoms.length > 0 && (
-                                <div>
-                                  <span className="text-slate-400 font-bold uppercase block text-[9px] mb-1">Symptoms</span>
-                                  <ul className="list-disc list-inside text-xs text-slate-700 space-y-0.5">
-                                    {data.symptoms.map((s, i) => <li key={i}>{s}</li>)}
-                                  </ul>
-                                </div>
-                              )}
-
-                              {data.lab_results && data.lab_results.length > 0 && (
-                                <div>
-                                  <span className="text-slate-400 font-bold uppercase block text-[9px] mb-1">Lab Results</span>
-                                  <div className="overflow-x-auto border border-slate-100 rounded-lg">
-                                    <table className="w-full text-[10px] text-left">
-                                      <thead className="bg-slate-50 text-slate-500 uppercase font-bold">
-                                        <tr>
-                                          <th className="px-2 py-1.5">Test</th>
-                                          <th className="px-2 py-1.5">Result</th>
-                                          <th className="px-2 py-1.5">Reference</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody className="divide-y divide-slate-50">
-                                        {data.lab_results.map((r, i) => (
-                                          <tr key={i}>
-                                            <td className="px-2 py-1.5 font-medium">{r.test}</td>
-                                            <td className="px-2 py-1.5">{r.result} {r.unit}</td>
-                                            <td className="px-2 py-1.5 text-slate-400">{r.reference_range}</td>
-                                          </tr>
-                                        ))}
-                                      </tbody>
-                                    </table>
-                                  </div>
-                                </div>
-                              )}
-                              
-                              {data.diagnosis && (
-                                 <div>
-                                   <span className="text-slate-400 font-bold uppercase block text-[9px]">Diagnosis</span>
-                                   <span className="text-slate-700 text-xs">{data.diagnosis}</span>
-                                 </div>
-                              )}
-                              
-                              {data.plan && (
-                                 <div>
-                                   <span className="text-slate-400 font-bold uppercase block text-[9px]">Plan</span>
-                                   <span className="text-slate-700 text-xs">{data.plan}</span>
-                                 </div>
-                              )}
-                            </div>
-                          );
-                        } catch (e) {
-                          return (
-                            <p className="text-sm text-slate-600 line-clamp-2 mb-4 italic">
-                              "{record.full_text}"
-                            </p>
-                          );
-                        }
-                      })()}
-
-                      <div className="space-y-2">
-                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Follow-up questions for doctor</p>
-                        <div className="space-y-2">
-                          {JSON.parse(record.follow_ups || '[]').map((q: string, i: number) => (
-                            <div key={i} className="text-[11px] bg-slate-50 text-slate-600 p-2 rounded-lg flex items-start gap-2 border border-slate-100">
-                              <MessageSquare className="w-3.5 h-3.5 mt-0.5 shrink-0 text-slate-400" />
-                              <span>{q}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </Card>
-                  ))}
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </Card>
+                    );
+                  })}
                 </div>
               )}
-            </div>
-
-            {/* Daily Logs */}
-            <div className="space-y-4">
-              <h3 className="font-bold text-slate-700 flex items-center gap-2">
-                <Activity className="w-5 h-5" />
-                Symptom Log
-              </h3>
-              <div className="space-y-3">
-                {logs.map(log => (
-                  <div key={log.id} className="flex gap-4 items-start">
-                    <div className="w-2 h-2 rounded-full bg-teal-400 mt-2 shrink-0" />
-                    <div>
-                      <p className="text-sm text-slate-800">{log.symptom_description}</p>
-                      <p className="text-[10px] text-slate-400 font-medium uppercase mt-1">{log.date}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
             </div>
           </div>
         )}
@@ -595,6 +600,74 @@ export default function App() {
           </div>
         )}
 
+        {activeTab === 'advice' && (
+          <div className="flex flex-col h-[calc(100vh-16rem)]">
+            <div className="flex-1 overflow-y-auto space-y-4 pb-4">
+              {chatMessages.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-center p-8 space-y-4">
+                  <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center">
+                    <Sparkles className="w-8 h-8 text-emerald-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-slate-800">MedLeaf Advice</h3>
+                    <p className="text-sm text-slate-500 max-w-xs mx-auto">
+                      Get personalized health strategies and insurance advice based on your medical history.
+                    </p>
+                  </div>
+                  <Button 
+                    onClick={getRecommendations} 
+                    loading={isAnalyzing}
+                    className="bg-emerald-600 hover:bg-emerald-700"
+                  >
+                    Generate Initial Strategy
+                  </Button>
+                </div>
+              ) : (
+                chatMessages.map((msg, i) => (
+                  <div 
+                    key={i} 
+                    className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <div className={`max-w-[85%] p-4 rounded-2xl text-sm ${
+                      msg.role === 'user' 
+                        ? 'bg-emerald-600 text-white rounded-tr-none' 
+                        : 'bg-white border border-slate-100 text-slate-800 rounded-tl-none shadow-sm'
+                    }`}>
+                      {msg.text}
+                    </div>
+                  </div>
+                ))
+              )}
+              {isChatLoading && (
+                <div className="flex justify-start">
+                  <div className="bg-white border border-slate-100 p-4 rounded-2xl rounded-tl-none shadow-sm">
+                    <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
+                  </div>
+                </div>
+              )}
+              <div ref={chatEndRef} />
+            </div>
+
+            <form onSubmit={handleSendMessage} className="relative mt-4">
+              <input 
+                type="text"
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                placeholder="Ask about your health strategy..."
+                className="w-full bg-white border border-slate-200 rounded-2xl px-4 py-3 pr-12 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                disabled={isChatLoading || !activeProfile}
+              />
+              <button 
+                type="submit"
+                disabled={!chatInput.trim() || isChatLoading || !activeProfile}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-emerald-600 hover:bg-emerald-50 rounded-xl disabled:opacity-30 transition-all"
+              >
+                <Send className="w-5 h-5" />
+              </button>
+            </form>
+          </div>
+        )}
+
         {activeTab === 'profiles' && (
           <div className="space-y-6">
             <h3 className="font-bold text-slate-700">Family Profiles</h3>
@@ -662,6 +735,13 @@ export default function App() {
           >
             <Shield className="w-6 h-6" />
             <span className="text-[10px] font-bold uppercase tracking-wider">Insurance</span>
+          </button>
+          <button 
+            onClick={() => setActiveTab('advice')}
+            className={`flex flex-col items-center gap-1 ${activeTab === 'advice' ? 'text-emerald-600' : 'text-slate-400'}`}
+          >
+            <Sparkles className="w-6 h-6" />
+            <span className="text-[10px] font-bold uppercase tracking-wider">Advice</span>
           </button>
           <button 
             onClick={() => setActiveTab('profiles')}
