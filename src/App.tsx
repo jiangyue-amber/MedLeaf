@@ -58,8 +58,8 @@ const Card = ({ children, className = "", ...props }: { children: React.ReactNod
 const Button = ({ children, onClick, variant = 'primary', className = "", disabled = false, loading = false }: any) => {
   const base = "px-4 py-2 rounded-xl font-medium transition-all flex items-center justify-center gap-2 disabled:opacity-50";
   const variants: any = {
-    primary: "bg-blue-600 text-white hover:bg-blue-700 shadow-sm",
-    secondary: "bg-teal-50 text-teal-700 hover:bg-teal-100",
+    primary: "bg-sky-500 text-white hover:bg-sky-600 shadow-sm",
+    secondary: "bg-sky-50 text-sky-700 hover:bg-sky-100",
     outline: "border border-slate-200 text-slate-600 hover:bg-slate-50",
     ghost: "text-slate-500 hover:bg-slate-50"
   };
@@ -273,10 +273,10 @@ export default function App() {
       <header className="bg-white border-b border-slate-100 sticky top-0 z-30">
         <div className="max-w-2xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-sky-500 rounded-lg flex items-center justify-center">
               <Leaf className="w-5 h-5 text-white" />
             </div>
-            <h1 className="font-bold text-lg tracking-tight">MedLeaf</h1>
+            <h1 className="font-bold text-lg tracking-tight text-slate-800">MedLeaf</h1>
           </div>
           
           <div className="relative">
@@ -284,8 +284,8 @@ export default function App() {
               onClick={() => setActiveTab('profiles')}
               className="flex items-center gap-2 bg-slate-100 px-3 py-1.5 rounded-full hover:bg-slate-200 transition-colors"
             >
-              <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
-                <Users className="w-4 h-4 text-blue-600" />
+              <div className="w-6 h-6 bg-sky-100 rounded-full flex items-center justify-center">
+                <Users className="w-4 h-4 text-sky-600" />
               </div>
               <span className="text-sm font-medium">{activeProfile?.name || 'Select Profile'}</span>
             </button>
@@ -302,16 +302,16 @@ export default function App() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95 }}
             >
-              <Card className="bg-blue-50 border-blue-100 flex gap-4">
-                <Shield className="w-6 h-6 text-blue-600 shrink-0" />
+              <Card className="bg-sky-50 border-sky-100 flex gap-4">
+                <Shield className="w-6 h-6 text-sky-600 shrink-0" />
                 <div>
-                  <p className="text-sm text-blue-800 font-medium mb-2">Privacy First</p>
-                  <p className="text-sm text-blue-700 leading-relaxed">
+                  <p className="text-sm text-sky-800 font-medium mb-2">Privacy First</p>
+                  <p className="text-sm text-sky-700 leading-relaxed">
                     Your data is only sent to AI for a one-time analysis and is never stored in the cloud. Results are saved locally on your device.
                   </p>
                   <button 
                     onClick={dismissDisclaimer}
-                    className="mt-3 text-sm font-bold text-blue-600 hover:text-blue-700"
+                    className="mt-3 text-sm font-bold text-sky-600 hover:text-sky-700"
                   >
                     Got it
                   </button>
@@ -322,29 +322,76 @@ export default function App() {
         </AnimatePresence>
 
         {activeTab === 'health' && (
-          <div className="space-y-6">
-            {/* Quick Actions */}
-            <div className="grid grid-cols-1">
-              <Button 
-                variant="secondary" 
-                className="h-24 flex-col"
+          <div className="space-y-8">
+            {/* Action Center */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Upload Card */}
+              <motion.div 
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
                 onClick={() => { setUploadType('medical'); setIsUploading(true); }}
+                className="relative overflow-hidden group cursor-pointer"
               >
-                <Upload className="w-6 h-6" />
-                <span>Upload Note</span>
-              </Button>
+                <div className="absolute inset-0 bg-gradient-to-br from-sky-400 to-sky-600 opacity-90 group-hover:opacity-100 transition-opacity" />
+                <div className="relative p-6 h-40 flex flex-col justify-between text-white">
+                  <div className="bg-white/20 w-10 h-10 rounded-xl flex items-center justify-center backdrop-blur-md">
+                    <Upload className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-lg">Upload Records</h3>
+                    <p className="text-xs text-sky-100 opacity-80">Scan doctor notes or lab results</p>
+                  </div>
+                </div>
+                {/* Decorative element */}
+                <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-white/10 rounded-full blur-2xl group-hover:bg-white/20 transition-all" />
+              </motion.div>
+
+              {/* Advice Card */}
+              <motion.div 
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => setActiveTab('advice')}
+                className="relative overflow-hidden group cursor-pointer"
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-sky-300 to-sky-500 opacity-90 group-hover:opacity-100 transition-opacity" />
+                <div className="relative p-6 h-40 flex flex-col justify-between text-white">
+                  <div className="bg-white/20 w-10 h-10 rounded-xl flex items-center justify-center backdrop-blur-md">
+                    <Sparkles className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-lg">Health Advice</h3>
+                    <p className="text-xs text-sky-100 opacity-80">Chat with your AI health strategist</p>
+                  </div>
+                </div>
+                {/* Decorative element */}
+                <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-white/10 rounded-full blur-2xl group-hover:bg-white/20 transition-all" />
+              </motion.div>
             </div>
 
             {/* Timeline */}
-            <div className="space-y-4">
-              <h3 className="font-bold text-slate-700 flex items-center gap-2">
-                <Calendar className="w-5 h-5" />
-                Medical Timeline
-              </h3>
+            <div className="space-y-6">
+              <div className="flex items-end justify-between">
+                <div>
+                  <h3 className="font-bold text-2xl text-slate-800 tracking-tight">Medical Timeline</h3>
+                  <p className="text-xs text-slate-400 font-medium uppercase tracking-widest mt-1">Chronological History</p>
+                </div>
+                <div className="bg-slate-100 px-3 py-1 rounded-full text-[10px] font-bold text-slate-500 uppercase">
+                  {records.length} Records
+                </div>
+              </div>
+              
               {records.length === 0 ? (
-                <div className="text-center py-12 bg-white rounded-2xl border border-dashed border-slate-200">
-                  <FileText className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                  <p className="text-slate-500 text-sm">No records yet. Upload your first doctor note.</p>
+                <div className="text-center py-20 bg-white rounded-3xl border border-slate-100 shadow-sm relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-sky-400 to-sky-600 opacity-20" />
+                  <div className="relative z-10">
+                    <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                      <FileText className="w-10 h-10 text-slate-200" />
+                    </div>
+                    <h4 className="font-bold text-slate-800 mb-2">Your timeline is empty</h4>
+                    <p className="text-slate-400 text-sm max-w-[200px] mx-auto leading-relaxed">
+                      Upload your first doctor note or lab result to start your digital history.
+                    </p>
+                  </div>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -358,7 +405,7 @@ export default function App() {
                     return (
                       <Card 
                         key={record.id} 
-                        className="hover:border-blue-200 transition-colors cursor-pointer group relative overflow-hidden"
+                        className="hover:border-sky-200 transition-colors cursor-pointer group relative overflow-hidden"
                         onClick={() => toggleRecord(record.id)}
                       >
                         <button 
@@ -371,7 +418,7 @@ export default function App() {
                         <div className="flex justify-between items-start pr-8">
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
-                              <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">{record.type}</span>
+                              <span className="text-[10px] font-bold text-sky-600 uppercase tracking-wider">{record.type}</span>
                               <span className="text-[10px] text-slate-400 font-medium">{record.date}</span>
                             </div>
                             <h4 className="font-bold text-slate-800">
@@ -513,7 +560,7 @@ export default function App() {
                   const benefits = JSON.parse(policy.benefits_summary);
                   return (
                     <Card key={policy.id} className="overflow-hidden p-0">
-                      <div className="bg-blue-600 p-4 text-white">
+                      <div className="bg-sky-500 p-4 text-white">
                         <div className="flex justify-between items-center">
                           <div className="flex items-center gap-3">
                             <h4 className="font-bold">{policy.provider}</h4>
@@ -564,7 +611,7 @@ export default function App() {
                                     >
                                       <Minus className="w-3 h-3" />
                                     </button>
-                                    <span className="font-bold text-blue-600 min-w-[40px] text-center">{limit.used} / {limit.total}</span>
+                                    <span className="font-bold text-sky-600 min-w-[40px] text-center">{limit.used} / {limit.total}</span>
                                     <button 
                                       onClick={() => updateUsage(policy.id, i, 1)}
                                       className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200 transition-colors text-slate-600"
@@ -575,7 +622,7 @@ export default function App() {
                                 </div>
                                 <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
                                   <div 
-                                    className="h-full bg-blue-500 rounded-full transition-all duration-500" 
+                                    className="h-full bg-sky-500 rounded-full transition-all duration-500" 
                                     style={{ width: `${(limit.used / limit.total) * 100}%` }}
                                   />
                                 </div>
@@ -589,7 +636,7 @@ export default function App() {
                             <AlertCircle className="w-4 h-4 text-orange-400" />
                             <span>Expires: {benefits.expiration || 'Unknown'}</span>
                           </div>
-                          <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                          <CheckCircle2 className="w-5 h-5 text-sky-500" />
                         </div>
                       </div>
                     </Card>
@@ -605,8 +652,8 @@ export default function App() {
             <div className="flex-1 overflow-y-auto space-y-4 pb-4">
               {chatMessages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center p-8 space-y-4">
-                  <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center">
-                    <Sparkles className="w-8 h-8 text-emerald-600" />
+                  <div className="w-16 h-16 bg-sky-100 rounded-full flex items-center justify-center">
+                    <Sparkles className="w-8 h-8 text-sky-600" />
                   </div>
                   <div>
                     <h3 className="font-bold text-slate-800">MedLeaf Advice</h3>
@@ -617,7 +664,7 @@ export default function App() {
                   <Button 
                     onClick={getRecommendations} 
                     loading={isAnalyzing}
-                    className="bg-emerald-600 hover:bg-emerald-700"
+                    className="bg-sky-500 hover:bg-sky-600"
                   >
                     Generate Initial Strategy
                   </Button>
@@ -630,7 +677,7 @@ export default function App() {
                   >
                     <div className={`max-w-[85%] p-4 rounded-2xl text-sm ${
                       msg.role === 'user' 
-                        ? 'bg-emerald-600 text-white rounded-tr-none' 
+                        ? 'bg-sky-500 text-white rounded-tr-none' 
                         : 'bg-white border border-slate-100 text-slate-800 rounded-tl-none shadow-sm'
                     }`}>
                       {msg.text}
@@ -641,7 +688,7 @@ export default function App() {
               {isChatLoading && (
                 <div className="flex justify-start">
                   <div className="bg-white border border-slate-100 p-4 rounded-2xl rounded-tl-none shadow-sm">
-                    <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
+                    <Loader2 className="w-4 h-4 animate-spin text-sky-600" />
                   </div>
                 </div>
               )}
@@ -654,13 +701,13 @@ export default function App() {
                 value={chatInput}
                 onChange={(e) => setChatInput(e.target.value)}
                 placeholder="Ask about your health strategy..."
-                className="w-full bg-white border border-slate-200 rounded-2xl px-4 py-3 pr-12 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                className="w-full bg-white border border-slate-200 rounded-2xl px-4 py-3 pr-12 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
                 disabled={isChatLoading || !activeProfile}
               />
               <button 
                 type="submit"
                 disabled={!chatInput.trim() || isChatLoading || !activeProfile}
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-emerald-600 hover:bg-emerald-50 rounded-xl disabled:opacity-30 transition-all"
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-sky-600 hover:bg-sky-50 rounded-xl disabled:opacity-30 transition-all"
               >
                 <Send className="w-5 h-5" />
               </button>
@@ -678,13 +725,13 @@ export default function App() {
                   onClick={() => { setActiveProfile(profile); setActiveTab('health'); }}
                   className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${
                     activeProfile?.id === profile.id 
-                      ? 'bg-blue-50 border-blue-200 ring-2 ring-blue-100' 
+                      ? 'bg-sky-50 border-sky-200 ring-2 ring-sky-100' 
                       : 'bg-white border-slate-100 hover:border-slate-200'
                   }`}
                 >
                   <div className="flex items-center gap-4">
                     <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                      profile.is_master ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500'
+                      profile.is_master ? 'bg-sky-500 text-white' : 'bg-slate-100 text-slate-500'
                     }`}>
                       <Users className="w-6 h-6" />
                     </div>
@@ -693,7 +740,7 @@ export default function App() {
                       <p className="text-xs text-slate-500">{profile.relationship}</p>
                     </div>
                   </div>
-                  {activeProfile?.id === profile.id && <CheckCircle2 className="w-5 h-5 text-blue-600" />}
+                  {activeProfile?.id === profile.id && <CheckCircle2 className="w-5 h-5 text-sky-600" />}
                 </button>
               ))}
               <Button 
@@ -724,28 +771,28 @@ export default function App() {
         <div className="max-w-2xl mx-auto flex justify-between items-center">
           <button 
             onClick={() => setActiveTab('health')}
-            className={`flex flex-col items-center gap-1 ${activeTab === 'health' ? 'text-blue-600' : 'text-slate-400'}`}
+            className={`flex flex-col items-center gap-1 ${activeTab === 'health' ? 'text-sky-600' : 'text-slate-400'}`}
           >
             <Heart className="w-6 h-6" />
             <span className="text-[10px] font-bold uppercase tracking-wider">Health</span>
           </button>
           <button 
             onClick={() => setActiveTab('insurance')}
-            className={`flex flex-col items-center gap-1 ${activeTab === 'insurance' ? 'text-blue-600' : 'text-slate-400'}`}
+            className={`flex flex-col items-center gap-1 ${activeTab === 'insurance' ? 'text-sky-600' : 'text-slate-400'}`}
           >
             <Shield className="w-6 h-6" />
             <span className="text-[10px] font-bold uppercase tracking-wider">Insurance</span>
           </button>
           <button 
             onClick={() => setActiveTab('advice')}
-            className={`flex flex-col items-center gap-1 ${activeTab === 'advice' ? 'text-emerald-600' : 'text-slate-400'}`}
+            className={`flex flex-col items-center gap-1 ${activeTab === 'advice' ? 'text-sky-600' : 'text-slate-400'}`}
           >
             <Sparkles className="w-6 h-6" />
             <span className="text-[10px] font-bold uppercase tracking-wider">Advice</span>
           </button>
           <button 
             onClick={() => setActiveTab('profiles')}
-            className={`flex flex-col items-center gap-1 ${activeTab === 'profiles' ? 'text-blue-600' : 'text-slate-400'}`}
+            className={`flex flex-col items-center gap-1 ${activeTab === 'profiles' ? 'text-sky-600' : 'text-slate-400'}`}
           >
             <Users className="w-6 h-6" />
             <span className="text-[10px] font-bold uppercase tracking-wider">Profiles</span>
@@ -775,18 +822,18 @@ export default function App() {
 
                 <div 
                   onClick={() => fileInputRef.current?.click()}
-                  className="border-2 border-dashed border-slate-200 rounded-2xl p-12 text-center hover:border-blue-400 hover:bg-blue-50 transition-all cursor-pointer group"
+                  className="border-2 border-dashed border-slate-200 rounded-2xl p-12 text-center hover:border-sky-400 hover:bg-sky-50 transition-all cursor-pointer group"
                 >
                   {isAnalyzing ? (
                     <div className="space-y-4">
-                      <Loader2 className="w-12 h-12 text-blue-600 animate-spin mx-auto" />
-                      <p className="font-bold text-blue-600">Gemini is analyzing...</p>
+                      <Loader2 className="w-12 h-12 text-sky-600 animate-spin mx-auto" />
+                      <p className="font-bold text-sky-600">Gemini is analyzing...</p>
                       <p className="text-xs text-slate-500">Extracting dates, jargon, and benefits.</p>
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto group-hover:scale-110 transition-transform">
-                        <Upload className="w-8 h-8 text-blue-600" />
+                      <div className="w-16 h-16 bg-sky-100 rounded-full flex items-center justify-center mx-auto group-hover:scale-110 transition-transform">
+                        <Upload className="w-8 h-8 text-sky-600" />
                       </div>
                       <div>
                         <p className="font-bold text-slate-800">Tap to select file</p>
